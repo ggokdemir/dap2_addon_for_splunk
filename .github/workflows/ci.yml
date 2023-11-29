@@ -24,7 +24,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - run: |
-          find . -name '*.pyc' -delete
           tar --exclude="dap2_addon_for_splunk/local" --exclude="dap2_addon_for_splunk/metadata/local.meta" -zcvf dap2_addon_for_splunk.tgz dap2_addon_for_splunk
       - uses: splunk/appinspect-api-action@v2
         with:
