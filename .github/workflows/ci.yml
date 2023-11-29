@@ -24,7 +24,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - run: |
-          tar cvzf dap2_addon_for_splunk.tgz --disable-copyfile --exclude “local.meta” --exclude “.DS_Store” --exclude .git/ --exclude “.gitignore” --exclude local/ --exclude __pycache__/ “dap2_addon_for_splunk/”
+          tar cvzf dap2_addon_for_splunk.tgz --exclude “local.meta” --exclude “.DS_Store” --exclude .git/ --exclude “.gitignore” --exclude local/ --exclude __pycache__/ “dap2_addon_for_splunk/”
       - uses: splunk/appinspect-api-action@v2
         with:
           filePath: dap2_addon_for_splunk.tgz
