@@ -1,0 +1,74 @@
+name: CI
+
+on: push
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python all python version
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Run Test
+        env:
+          SPLUNK_HOME: .
+        run: python -m unittest discover tests
+
+  appinspect-api:
+    name: AppInspect API Validation
+    runs-on: ubuntu-latest
+    needs: unittest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - run: |
+          find . -name '*.pyc' -delete
+          tar --exclude="dap2_addon_for_splunk/local" --exclude="dap2_addon_for_splunk/metadata/local.meta" -zcvf dap2_addon_for_splunk.tgz dap2_addon_for_splunk
+      - uses: splunk/appinspect-api-action@v2
+        with:
+          filePath: dap2_addon_for_splunk.tgz
+          splunkUser: ${{ secrets.SPLUNK_USER }}
+          splunkPassword: ${{ secrets.SPLUNK_PASS }}
+          includedTags: cloud
+          failOnError: true
+          failOnWarning: false
+
+  splunk-test:
+    needs: appinspect-api
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: ["7.3.9","7.2.10.1","8.2"]
+    services:
+      splunk:
+        image: splunk/splunk:${{ matrix.version }}
+        env:
+          SPLUNK_START_ARGS: --accept-license
+          SPLUNK_PASSWORD: password
+        options: >-
+          --health-interval 30s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 8000:8000
+          - 8089:8089
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Copy app to service container
+        run: docker cp dap2_addon_for_splunk ${{ job.services.splunk.id }}:/opt/splunk/etc/apps/dap2_addon_for_splunk
+
+      - run: docker exec -i ${{ job.services.splunk.id }} ls -a /opt/splunk/etc/apps/dap2_addon_for_splunk
+      - run: docker exec -i ${{ job.services.splunk.id }} ls -a /opt/splunk/etc/apps
+
+      - name: Restart instance
+        run: |
+          curl -k -u admin:password https://localhost:8089/services/server/control/restart -X POST
+          sleep 30
+      - name: Print App Configuration
+        run: |
+          curl -k -u admin:password https://localhost:8089/services/apps/local/dap2_addon_for_splunk
